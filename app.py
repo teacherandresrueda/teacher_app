@@ -11,26 +11,26 @@ st.set_page_config(page_title="Teacher Control Pro", layout="wide")
 st.title("📊 Teacher Control System")
 st.caption("Nivel PRO - ClassDojo Style")
 
-# Cargar datos
+# LOAD DATA
 df = load_data()
 
-# Filtros
+# FILTERS
 df = apply_filters(df)
 
-# KPIs
+# METRICS
 show_metrics(df)
 
 st.divider()
 
-# Dashboard
+# DASHBOARD
 show_dashboard(df)
 
 st.divider()
 
-# Alertas
+# ALERTS
 show_alerts(df)
 
 st.divider()
 
-# Vista visual
+# DOJO VIEW
 show_dojo(df)
