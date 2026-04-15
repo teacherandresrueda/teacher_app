@@ -1,6 +1,16 @@
 import streamlit as st
 
 def show_dojo(df):
+show_competition(df_editado)
+show_ranking(df_editado)
+
+bg = color_equipo.get(row["Equipo"], "#CCCCCC")
+color_equipo = {
+    "🔥 Rojo": "#FF4B4B",
+    "💧 Azul": "#4B8BFF",
+    "🌱 Verde": "#00FF9C",
+    "⚡ Amarillo": "#FFD700"
+}
     st.subheader("🎮 Modo Clase en Vivo")
 
     # 🔥 inicializar estado
