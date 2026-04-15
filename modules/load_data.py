@@ -20,3 +20,11 @@ def load_data():
     df["Puntos"] = pd.to_numeric(df["Puntos"], errors="coerce").fillna(0)
 
     return df
+    df = asignar_equipos(df)
+    def asignar_equipos(df):
+    equipos = ["🔥 Rojo", "💧 Azul", "🌱 Verde", "⚡ Amarillo"]
+
+    for i in range(len(df)):
+        df.loc[i, "Equipo"] = equipos[i % len(equipos)]
+
+    return df
