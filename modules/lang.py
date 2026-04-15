@@ -1,59 +1,49 @@
-import streamlit as st
+def get_texts(lang="EN"):
 
-def show_dojo(df):
-    st.subheader("🎮 Modo Clase en Vivo")
+    texts = {
+        "EN": {
+            "title": "🎯 Classroom Control System",
+            "subtitle": "Track performance. Build discipline. Reward growth.",
+            "board": "👥 Student Performance Board",
+            "filters": "🔎 Filters",
+            "status": "Status",
+            "all": "All",
+            "active": "Active",
+            "risk": "At Risk",
+            "group": "Group",
+            "search": "Search student...",
+            "points": "⭐ Points",
+            "reward": "➕ Reward",
+            "correct": "➖ Correct",
+            "save": "💾 Save Progress",
+            "results": "Showing",
+            "students": "students",
+            "top": "🏆 Top Students",
+            "motivation": "Keep going! Small actions build strong habits 💪",
+            "on_track": "✅ On track",
+            "attention": "⚠️ Attention needed"
+        },
 
-    # 🎨 colores por equipo
-    color_equipo = {
-        "🔥 Rojo": "#FF4B4B",
-        "💧 Azul": "#4B8BFF",
-        "🌱 Verde": "#00FF9C",
-        "⚡ Amarillo": "#FFD700"
+        "ES": {
+            "title": "🎯 Sistema de Control de Aula",
+            "subtitle": "Monitorea desempeño. Construye disciplina. Premia el progreso.",
+            "board": "👥 Panel de Estudiantes",
+            "filters": "🔎 Filtros",
+            "status": "Estado",
+            "all": "Todos",
+            "active": "Activos",
+            "risk": "En riesgo",
+            "group": "Grupo",
+            "search": "Buscar alumno...",
+            "points": "⭐ Puntos",
+            "reward": "➕ Recompensar",
+            "correct": "➖ Corregir",
+            "save": "💾 Guardar cambios",
+            "results": "Mostrando",
+            "students": "alumnos",
+            "top": "🏆 Mejores alumnos",
+            "motivation": "Sigue así. Las pequeñas acciones crean grandes hábitos 💪",
+            "on_track": "✅ Buen progreso",
+            "attention": "⚠️ Atención necesaria"
+        }
     }
-
-    # 🔥 estado persistente
-    if "data" not in st.session_state:
-        st.session_state.data = df.copy()
-
-    data = st.session_state.data
-
-    grupos = data["Grupo"].unique()
-
-    for grupo in grupos:
-        st.markdown(f"### 📘 Grupo {grupo}")
-
-        grupo_df = data[data["Grupo"] == grupo]
-
-        for i, row in grupo_df.iterrows():
-
-            col1, col2, col3, col4 = st.columns([4,1,1,1])
-
-            # 👤 nombre + color equipo
-            with col1:
-                bg = color_equipo.get(row["Equipo"], "#CCCCCC")
-                st.markdown(f"""
-                <div style="background-color:{bg}; padding:8px; border-radius:8px;">
-                {row['Alumno']}
-                </div>
-                """, unsafe_allow_html=True)
-
-            # ⭐ puntos
-            with col2:
-                st.write(f"⭐ {row['Puntos']}")
-
-            # ➕ sumar
-            with col3:
-                if st.button("➕", key=f"plus_{i}"):
-                    st.session_state.data.at[i, "Puntos"] += 1
-                    st.session_state.data.at[i, "Estado"] = 1
-                    st.rerun()
-
-            # ➖ restar
-            with col4:
-                if st.button("➖", key=f"minus_{i}"):
-                    st.session_state.data.at[i, "Puntos"] = max(
-                        0, st.session_state.data.at[i, "Puntos"] - 1
-                    )
-                    st.rerun()
-
-    return st.session_state.data
