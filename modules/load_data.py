@@ -1,11 +1,6 @@
-import pandas as pd
-
-def load_data():
-    df = pd.read_csv("data/Log_Unificado.csv")
-
-    df["Estado"] = df["Estado"].fillna(0).astype(int)
-    df["Puntos"] = df["Puntos"].fillna(0)
-
-    df["Alumno"] = df["Alumno"].astype(str)
-
-    return df
+Alumno,Grupo,Equipo,Puntos,Nivel,Estado
+Juan,2A,1,8,🟢,1
+Maria,2A,2,3,🔴,0
+Luis,1B,1,10,🟢,1
+Ana,1B,2,2,🔴,0
+Pedro,2A,1,6,🟡,1
