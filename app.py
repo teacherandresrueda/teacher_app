@@ -34,9 +34,10 @@ except Exception as e:
 # =========================
 # VALIDACIÓN DE DATOS
 # =========================
-if df is None or df.empty:
-    st.warning("⚠️ No hay datos disponibles. Verifica el archivo CSV.")
-    st.stop()
+df_editado = show_dojo(df)
+
+if st.button("💾 Guardar cambios"):
+    save_data(df_editado)
 
 # =========================
 # FILTROS
