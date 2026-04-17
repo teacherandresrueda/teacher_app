@@ -1,5 +1,5 @@
 import streamlit as st
-
+from modules.live_class import live_class_ui
 from modules.class_manager import class_manager_ui
 from modules.students import students_ui
 from modules.dojo import dojo_ui
@@ -9,10 +9,11 @@ st.set_page_config(page_title="Teacher System", layout="wide")
 
 st.title("🎓 TEACHER SYSTEM PRO")
 
-menu = st.sidebar.radio("Navegación", [
+   menu = st.sidebar.radio("Navegación", [
     "📚 Class Manager",
     "👨‍🎓 Students",
     "🔥 Dojo",
+    "🎯 Clase en Vivo",
     "💾 Backup"
 ])
 
