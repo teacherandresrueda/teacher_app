@@ -1,81 +1,29 @@
 import streamlit as st
-from modules.load_data import load_data
-from modules.filters import apply_filters
-from modules.metrics import show_metrics
-from modules.dashboard import show_dashboard
-from modules.alerts import show_alerts
-from modules.dojo_view import show_dojo
-from modules.competition import show_competition, show_ranking
-from modules.lang import get_texts
+import pandas as pd
 
-lang_option = st.sidebar.selectbox("Language / Idioma", ["EN", "ES"])
-T = get_texts(lang_option)
-# =========================
-# CONFIGURACIÓN GENERAL
-# =========================
-st.set_page_config(
-    page_title="Teacher Control Pro",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.title("📚 Class Manager")
 
-# =========================
-# HEADER
-# =========================
-st.title("📊 Teacher Control System")
-st.caption("Dashboard inteligente tipo ClassDojo")
+opcion = st.selectbox("Selecciona una opción", [
+    "Crear clase",
+    "Importar lista",
+    "Ver alumnos"
+])
 
-# =========================
-# CARGA DE DATOS (SEGURA)
-# =========================
-try:
-    df = load_data()
-except Exception as e:
-    st.error("❌ Error cargando datos")
-    st.exception(e)
-    st.stop()
+if opcion == "Crear clase":
+    nombre_clase = st.text_input("Nombre de la clase")
+    if st.button("Crear"):
+        st.success(f"Clase '{nombre_clase}' creada")
 
-# =========================
-# VALIDACIÓN DE DATOS
-# =========================
-df_editado = show_dojo(df)
+elif opcion == "Importar lista":
+    archivo = st.file_uploader("Sube tu archivo Excel", type=["xlsx"])
 
-if st.button("💾 Guardar cambios"):
-    save_data(df_editado)
+    if archivo:
+        df = pd.read_excel(archivo)
+        st.write("Vista previa:")
+        st.dataframe(df)
 
-# =========================
-# FILTROS
-# =========================
-df = apply_filters(df)
+        if st.button("Guardar lista"):
+            st.success("Lista importada correctamente")
 
-# =========================
-# KPIs
-# =========================
-show_metrics(df)
-
-st.divider()
-
-# =========================
-# DASHBOARD
-# =========================
-show_dashboard(df)
-
-st.divider()
-
-# =========================
-# ALERTAS
-# =========================
-show_alerts(df)
-
-st.divider()
-
-# =========================
-# VISTA VISUAL TIPO DOJO
-# =========================
-show_dojo(df)
-
-# =========================
-# FOOTER
-# =========================
-st.divider()
-st.caption("🚀 Teacher App Pro | Sistema de análisis educativo")
+elif opcion == "Ver alumnos":
+    st.info("Aquí se mostrarán los alumnos guardados")
