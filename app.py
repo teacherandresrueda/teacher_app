@@ -17,6 +17,9 @@ st.title("🎓 TEACHER SYSTEM PRO")
     "💾 Backup"
 ])
 
+elif menu == "🎯 Clase en Vivo":
+    live_class_ui()
+
 if "grupo_activo" not in st.session_state:
     st.session_state.grupo_activo = None
 
