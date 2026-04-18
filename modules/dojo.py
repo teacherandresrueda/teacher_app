@@ -1,2 +1,4 @@
+import streamlit as st
+
 def dojo_ui():
-    pass
+    st.title("Dojo Module Active")
