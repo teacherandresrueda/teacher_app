@@ -8,7 +8,7 @@ import plotly.express as px
 # =========================
 st.set_page_config(page_title="Academic Intelligence System", layout="wide")
 
-st.markdown("## ⚡ Academic Intelligence System")
+st.markdown("## ⚡ Academic Intelligence System 🎮")
 
 DATA_FILE = "data/students.csv"
 
@@ -24,7 +24,7 @@ if "df" not in st.session_state:
 df = st.session_state.df
 
 # =========================
-# UPLOAD (CLASDOJO REAL)
+# UPLOAD (CLASDOJO)
 # =========================
 uploaded_files = st.file_uploader(
     "📂 Upload ClassDojo reports",
@@ -38,13 +38,10 @@ if uploaded_files:
     for file in uploaded_files:
         temp_df = pd.read_csv(file, sep=",", encoding="utf-8-sig")
 
-        # EXTRAER GRUPO DEL NOMBRE
         group_name = file.name.split("_")[1] if "_" in file.name else file.name
 
-        # NOMBRE
         temp_df = temp_df.rename(columns={"Estudiante": "Nombre"})
 
-        # PUNTOS
         positivos = pd.to_numeric(temp_df["Positivo"], errors="coerce").fillna(0)
         negativos = pd.to_numeric(temp_df["Necesita trabajo"], errors="coerce").fillna(0)
 
@@ -64,114 +61,108 @@ if uploaded_files:
     os.makedirs("data", exist_ok=True)
     df.to_csv(DATA_FILE, index=False)
 
-    st.success("✅ Datos cargados correctamente")
+    st.success("✅ Datos cargados")
 
 # =========================
 # SIDEBAR
 # =========================
 menu = st.sidebar.radio("Menu", [
-    "Dashboard",
-    "Student Intelligence",
-    "Alerts Center",
-    "Reports"
+    "🎮 Dashboard",
+    "⚡ Gamificación",
+    "🚨 Alerts",
+    "📊 Reports"
 ])
 
-# FILTRO POR GRUPO
+# FILTRO
 if not df.empty:
-    grupos = df["Grupo"].unique()
-    grupo_sel = st.sidebar.selectbox("🎯 Grupo", grupos)
+    grupo_sel = st.sidebar.selectbox("🎯 Grupo", df["Grupo"].unique())
     df = df[df["Grupo"] == grupo_sel]
 
 # =========================
-# DASHBOARD PREMIUM
+# 🎮 DASHBOARD
 # =========================
-if menu == "Dashboard":
+if menu == "🎮 Dashboard":
 
-    st.markdown("### 📊 Overview")
+    st.markdown("### 🏆 Ranking del Grupo")
 
     if not df.empty:
 
-        total_students = df["Nombre"].nunique()
-        total_points = int(df["Puntos"].sum())
-        promedio = int(df["Puntos"].mean())
+        ranking = df.sort_values("Puntos", ascending=False)
 
-        col1, col2, col3 = st.columns(3)
+        for i, row in ranking.iterrows():
 
-        col1.metric("👨‍🎓 Students", total_students)
-        col2.metric("⭐ Total Points", total_points)
-        col3.metric("📈 Average", promedio)
-
-        st.markdown("---")
-
-        colA, colB = st.columns(2)
-
-        top = df.sort_values("Puntos", ascending=False).head(5)
-        risk = df.sort_values("Puntos", ascending=True).head(5)
-
-        with colA:
-            st.markdown("### 🏆 Top Students")
-            for i, row in top.iterrows():
-                st.success(f"{row['Nombre']} → {row['Puntos']} pts")
-
-        with colB:
-            st.markdown("### ⚠️ Needs Attention")
-            for i, row in risk.iterrows():
-                st.error(f"{row['Nombre']} → {row['Puntos']} pts")
+            if row["Puntos"] >= 5:
+                st.success(f"🥇 {row['Nombre']} → {row['Puntos']} pts")
+            elif row["Puntos"] >= 0:
+                st.info(f"🥈 {row['Nombre']} → {row['Puntos']} pts")
+            else:
+                st.error(f"⚠️ {row['Nombre']} → {row['Puntos']} pts")
 
         st.markdown("---")
 
-        # 🔥 GRÁFICA IMPACTO
         fig = px.bar(
-            df.sort_values("Puntos"),
+            ranking,
             x="Nombre",
             y="Puntos",
             color="Puntos",
-            title="📊 Student Performance"
+            title="📊 Performance"
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# STUDENT INTELLIGENCE
+# ⚡ GAMIFICACIÓN (BOTONES RÁPIDOS)
 # =========================
-elif menu == "Student Intelligence":
+elif menu == "⚡ Gamificación":
 
-    st.markdown("### 🎯 Student Control")
+    st.markdown("### 🎯 Control Rápido (tipo ClassDojo)")
 
     if not df.empty:
-        student = st.selectbox("Select student", df["Nombre"].unique())
-        puntos = st.number_input("Points (+ / -)", step=1, value=0)
 
-        if st.button("Apply ⚡"):
+        student = st.selectbox("Selecciona alumno", df["Nombre"].unique())
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        if col1.button("➕ +1"):
+            delta = 1
+        elif col2.button("🔥 +2"):
+            delta = 2
+        elif col3.button("⚠️ -1"):
+            delta = -1
+        elif col4.button("💀 -2"):
+            delta = -2
+        else:
+            delta = 0
+
+        if delta != 0:
             idx = st.session_state.df[
                 (st.session_state.df["Nombre"] == student) &
                 (st.session_state.df["Grupo"] == grupo_sel)
             ].index
 
-            st.session_state.df.loc[idx, "Puntos"] += puntos
-
+            st.session_state.df.loc[idx, "Puntos"] += delta
             st.session_state.df.to_csv(DATA_FILE, index=False)
 
-            st.success("Updated")
+            st.success(f"{student} → {delta} pts")
 
 # =========================
-# ALERTS CENTER
+# ALERTS
 # =========================
-elif menu == "Alerts Center":
+elif menu == "🚨 Alerts":
 
-    st.markdown("### 🚨 Alerts")
+    st.markdown("### 🚨 Atención")
 
     if not df.empty:
         for _, row in df.iterrows():
             if row["Puntos"] < 0:
-                st.error(f"{row['Nombre']} needs attention")
+                st.error(f"{row['Nombre']} necesita intervención")
 
 # =========================
 # REPORTS
 # =========================
-elif menu == "Reports":
+elif menu == "📊 Reports":
 
-    st.markdown("### 📊 Reports")
+    st.markdown("### 📊 Datos")
 
     if not df.empty:
         st.dataframe(df, use_container_width=True)
