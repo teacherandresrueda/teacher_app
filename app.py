@@ -16,8 +16,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 # AUTH SIMPLE (PLATAFORMA BASE)
 # =========================
 USERS = {
-    "teacher1": "1234",
-    "teacher2": "abcd"
+    "andres": "1234"
 }
 
 if "user" not in st.session_state:
