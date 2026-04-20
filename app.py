@@ -15,7 +15,7 @@ st.title("⚡ Academic Intelligence System")
 DATA_FILE = "data/students.csv"
 
 # =========================
-# LOAD DATA BASE
+# LOAD BASE DATA
 # =========================
 if "df" not in st.session_state:
     if os.path.exists(DATA_FILE):
@@ -24,6 +24,16 @@ if "df" not in st.session_state:
         st.session_state.df = pd.DataFrame(columns=["Nombre", "Puntos"])
 
 df = st.session_state.df
+
+# =========================
+# FUNCTION: DETECT NAME COLUMN
+# =========================
+def find_name_column(columns):
+    possible = ["Nombre", "Name", "Student", "Alumno"]
+    for col in columns:
+        if col.strip() in possible:
+            return col
+    return None
 
 # =========================
 # MULTI FILE UPLOADER
@@ -39,14 +49,24 @@ if uploaded_files:
 
     for file in uploaded_files:
         temp_df = pd.read_csv(file)
+
+        # Detect name column
+        name_col = find_name_column(temp_df.columns)
+
+        if name_col is None:
+            st.error(f"No name column found in {file.name}")
+            st.write("Columns detected:", list(temp_df.columns))
+            continue
+
+        temp_df = temp_df.rename(columns={name_col: "Nombre"})
         temp_df["group"] = file.name
+
         dfs.append(temp_df)
 
-    combined_df = pd.concat(dfs, ignore_index=True)
+    if dfs:
+        combined_df = pd.concat(dfs, ignore_index=True)
 
-    if "Nombre" in combined_df.columns:
-
-        # Crear columna puntos si no existe
+        # Create Puntos if not exists
         if "Puntos" not in combined_df.columns:
 
             pos_cols = [c for c in combined_df.columns if "positivo" in c.lower()]
@@ -71,9 +91,6 @@ if uploaded_files:
         df = st.session_state.df
 
         st.success("Files loaded successfully ⚡")
-
-    else:
-        st.error("Column 'Nombre' not found in files")
 
 # =========================
 # MENU
