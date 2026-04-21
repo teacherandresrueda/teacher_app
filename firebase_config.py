@@ -2,7 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import streamlit as st
 
-# Evita reinicializar Firebase
+# Inicializar Firebase UNA sola vez
 if not firebase_admin._apps:
 
     cred = credentials.Certificate({
@@ -20,5 +20,35 @@ if not firebase_admin._apps:
 
     firebase_admin.initialize_app(cred)
 
-# Base de datos
 db = firestore.client()
+
+
+# 🔹 REGISTRAR USUARIO
+def register_user(email, password):
+    users_ref = db.collection("users")
+    user = users_ref.document(email).get()
+
+    if user.exists:
+        return False, "User already exists"
+
+    users_ref.document(email).set({
+        "email": email,
+        "password": password
+    })
+
+    return True, "User created"
+
+
+# 🔹 LOGIN
+def login_user(email, password):
+    user_ref = db.collection("users").document(email).get()
+
+    if not user_ref.exists:
+        return False, "User not found"
+
+    user_data = user_ref.to_dict()
+
+    if user_data["password"] == password:
+        return True, "Login successful"
+    else:
+        return False, "Wrong password"
