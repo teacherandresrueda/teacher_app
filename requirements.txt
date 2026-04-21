@@ -1,4 +1,2 @@
 streamlit
 firebase-admin
-pandas
-plotly
