@@ -37,16 +37,34 @@ elif menu == "Register":
     if st.button("Create account"):
         st.write("🔍 intentando guardar...")
 
-        ok, msg = register_user(email, password)
-
-        st.write("RESULT:", ok, msg)
-
-        if ok:
-            st.success("Account created ✅")
-            st.session_state["user"] = email
-            st.rerun()
+        if not email or not password:
+            st.warning("Campos vacíos")
         else:
-            st.error(msg)
+            try:
+                ref = db.collection("users").document(email)
+
+                st.write("1. referencia creada")
+
+                exists = ref.get().exists
+                st.write("2. existe?:", exists)
+
+                if exists:
+                    st.error("Usuario ya existe")
+                else:
+                    ref.set({
+                        "email": email,
+                        "password": password
+                    })
+
+                    st.success("✅ GUARDADO REAL")
+                    st.write("3. documento creado")
+
+                    st.session_state["user"] = email
+                    st.rerun()
+
+            except Exception as e:
+                st.error("ERROR REAL:")
+                st.write(e)
 # -------- DASHBOARD --------
 if "user" in st.session_state:
 
