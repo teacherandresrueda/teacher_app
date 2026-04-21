@@ -1,55 +1,48 @@
 import streamlit as st
-from firebase_config import register_user, login_user, db
-from ai_module import generate_strategy
+from firebase_config import register_user, login_user
 
-st.title("MetaPattern EDU System")
+st.set_page_config(page_title="Teacher App", layout="centered")
 
-menu = st.sidebar.selectbox("Menu", ["Login", "Register", "Dashboard"])
+st.title("🎓 Teacher System")
 
-# REGISTER
-if menu == "Register":
+menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
+
+# ---------------- LOGIN ----------------
+if menu == "Login":
+    st.subheader("Login")
+
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
-    if st.button("Register"):
-        uid = register_user(email, password)
-        if uid:
-            st.success("User created")
-        else:
-            st.error("Error creating user")
-
-# LOGIN
-elif menu == "Login":
-    email = st.text_input("Email")
-    
     if st.button("Login"):
-        uid = login_user(email)
-        if uid:
-            st.session_state["user"] = uid
-            st.success("Login successful")
+        success, message = login_user(email, password)
+
+        if success:
+            st.success(message)
+            st.session_state["user"] = email
         else:
-            st.error("Invalid credentials")
+            st.error(message)
 
-# DASHBOARD
-elif menu == "Dashboard":
+# ---------------- REGISTER ----------------
+if menu == "Register":
+    st.subheader("Create Account")
 
-    if "user" not in st.session_state:
-        st.warning("Please login first")
-    else:
-        st.success("Welcome")
+    email = st.text_input("New Email")
+    password = st.text_input("New Password", type="password")
 
-        st.subheader("Student Risk Input")
+    if st.button("Register"):
+        success, message = register_user(email, password)
 
-        student_data = st.text_area("Describe student situation")
+        if success:
+            st.success(message)
+        else:
+            st.error(message)
 
-        if st.button("Analyze Student"):
-            result = generate_strategy(student_data)
 
-            # Guardar en nube
-            db.collection("risk_analysis").add({
-                "user": st.session_state["user"],
-                "data": student_data,
-                "result": result
-            })
+# ---------------- DASHBOARD ----------------
+if "user" in st.session_state:
+    st.sidebar.success(f"Logged in as {st.session_state['user']}")
 
-            st.write(result)
+    st.subheader("📊 Dashboard")
+
+    st.write("Aquí ya empieza tu sistema real...")
