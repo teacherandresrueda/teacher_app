@@ -1,48 +1,58 @@
-import streamlit as st
-from firebase_config import register_user, login_user
+from firebase_config import add_student, get_students, add_points
 
-st.set_page_config(page_title="Teacher App", layout="centered")
-
-st.title("🎓 Teacher System")
-
-menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
-
-# ---------------- LOGIN ----------------
-if menu == "Login":
-    st.subheader("Login")
-
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        success, message = login_user(email, password)
-
-        if success:
-            st.success(message)
-            st.session_state["user"] = email
-        else:
-            st.error(message)
-
-# ---------------- REGISTER ----------------
-if menu == "Register":
-    st.subheader("Create Account")
-
-    email = st.text_input("New Email")
-    password = st.text_input("New Password", type="password")
-
-    if st.button("Register"):
-        success, message = register_user(email, password)
-
-        if success:
-            st.success(message)
-        else:
-            st.error(message)
-
-
-# ---------------- DASHBOARD ----------------
 if "user" in st.session_state:
-    st.sidebar.success(f"Logged in as {st.session_state['user']}")
 
-    st.subheader("📊 Dashboard")
+    st.sidebar.success(f"Teacher: {st.session_state['user']}")
 
-    st.write("Aquí ya empieza tu sistema real...")
+    st.title("📊 Class Control Panel")
+
+    tab1, tab2, tab3 = st.tabs(["Students", "ClassDojo+", "Strategy"])
+
+    # -------- STUDENTS --------
+    with tab1:
+        st.subheader("Add Student")
+
+        name = st.text_input("Student name")
+
+        if st.button("Add"):
+            add_student(st.session_state["user"], name)
+            st.success("Student added")
+
+        st.subheader("Student List")
+
+        students = get_students(st.session_state["user"])
+
+        for s in students:
+            st.write(f"👤 {s['name']} | ⭐ {s['points']}")
+
+    # -------- CLASSDOJO+ --------
+    with tab2:
+        st.subheader("Give Points")
+
+        students = get_students(st.session_state["user"])
+
+        for s in students:
+            col1, col2, col3 = st.columns([3,1,1])
+
+            col1.write(f"{s['name']} ({s['points']})")
+
+            if col2.button(f"+1 {s['id']}"):
+                add_points(s["id"], 1)
+
+            if col3.button(f"-1 {s['id']}"):
+                add_points(s["id"], -1)
+
+    # -------- STRATEGY --------
+    with tab3:
+        st.subheader("Strategic Insight")
+
+        students = get_students(st.session_state["user"])
+
+        if students:
+            best = max(students, key=lambda x: x["points"])
+            worst = min(students, key=lambda x: x["points"])
+
+            st.success(f"Top student: {best['name']} ⭐ {best['points']}")
+            st.warning(f"Needs attention: {worst['name']} ⚠ {worst['points']}")
+
+        st.info("This is your behavioral control system.")
