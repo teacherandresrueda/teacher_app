@@ -1,5 +1,5 @@
 import streamlit as st
-from firebase_config import register_user, login_user, add_student, get_students, add_points, db
+from firebase_config import login_user, add_student, get_students, add_points, db
 
 st.set_page_config(page_title="Teacher Pro System")
 
@@ -8,80 +8,53 @@ st.title("🎓 Teacher Control System")
 menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
 
 # -------- LOGIN --------
-def login_user(email, password):
-    try:
-        ref = db.collection("users").document(email)
-        user = ref.get()
+if menu == "Login":
+    st.subheader("Login")
 
-        if not user.exists:
-            return False, "User not found"
+    login_email = st.text_input("Email", key="login_email")
+    login_password = st.text_input("Password", type="password", key="login_pass")
 
-        data = user.to_dict()
+    if st.button("Login"):
+        if login_email and login_password:
+            ok, msg = login_user(login_email, login_password)
 
-        if data["password"] == password:
-            return True, "Login successful"
+            if ok:
+                st.session_state["user"] = login_email
+                st.success("Welcome 🔥")
+                st.rerun()
+            else:
+                st.error(msg)
         else:
-            return False, "Wrong password"
+            st.warning("Fill all fields")
 
-    except Exception as e:
-        return False, str(e)
 
 # -------- REGISTER --------
 if menu == "Register":
     st.subheader("Create Account")
 
-    email = st.text_input("New email")
-    password = st.text_input("New password", type="password")
+    reg_email = st.text_input("New email", key="reg_email")
+    reg_password = st.text_input("New password", type="password", key="reg_pass")
 
     if st.button("Create account"):
-        try:
-            ref = db.collection("users").document(email)
-
-            ref.set({
-                "email": email,
-                "password": password
-            })
-
-            st.success("✅ Account created")
-            st.session_state["user"] = email
-            st.rerun()
-
-        except Exception as e:
-            st.error(str(e))
-
-# -------- REGISTER --------
-elif menu == "Register":
-    st.subheader("Create Account")
-
-    email = st.text_input("New email")
-    password = st.text_input("New password", type="password")
-
-    if st.button("Create account"):
-        st.write("🔍 intentando guardar...")
-
-        if not email or not password:
-            st.warning("Campos vacíos")
+        if not reg_email or not reg_password:
+            st.warning("Fill all fields")
         else:
             try:
-                ref = db.collection("users").document(email)
+                ref = db.collection("users").document(reg_email)
 
-                st.write("1. referencia creada")
-
-                # 🔥 GUARDADO DIRECTO (SIN VALIDACIÓN)
                 ref.set({
-                    "email": email,
-                    "password": password
+                    "email": reg_email,
+                    "password": reg_password
                 })
 
-                st.success("✅ GUARDADO REAL")
-                st.write("2. documento creado")
-
-                st.session_state["user"] = email
+                st.success("✅ Account created")
+                st.session_state["user"] = reg_email
                 st.rerun()
 
             except Exception as e:
-                st.error("ERROR REAL:")
-                st.write(e)
+                st.error(str(e))
+
+
 # -------- DASHBOARD --------
 if "user" in st.session_state:
 
@@ -93,16 +66,19 @@ if "user" in st.session_state:
 
     # -------- STUDENTS --------
     with tab1:
-        name = st.text_input("Student name")
+        name = st.text_input("Student name", key="student_name")
 
         if st.button("Add student"):
-            add_student(st.session_state["user"], name)
-            st.success("Added")
+            if name:
+                add_student(st.session_state["user"], name)
+                st.success("Student added")
+            else:
+                st.warning("Enter a name")
 
         students = get_students(st.session_state["user"])
 
         for s in students:
-            st.write(f"{s['name']} ⭐ {s['points']}")
+            st.write(f"👤 {s['name']} ⭐ {s['points']}")
 
     # -------- POINTS --------
     with tab2:
@@ -113,10 +89,10 @@ if "user" in st.session_state:
 
             col1.write(f"{s['name']} ({s['points']})")
 
-            if col2.button(f"+ {s['id']}"):
+            if col2.button(f"+1 {s['id']}"):
                 add_points(s["id"], 1)
 
-            if col3.button(f"- {s['id']}"):
+            if col3.button(f"-1 {s['id']}"):
                 add_points(s["id"], -1)
 
     # -------- STRATEGY --------
@@ -129,3 +105,5 @@ if "user" in st.session_state:
 
             st.success(f"Top: {best['name']} ⭐ {best['points']}")
             st.warning(f"Attention: {worst['name']} ⚠ {worst['points']}")
+        else:
+            st.info("No students yet")
