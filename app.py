@@ -8,24 +8,20 @@ st.title("🎓 Teacher Control System")
 menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
 
 # -------- LOGIN --------
-if menu == "Login":
-    st.subheader("Login")
+def login_user(email, password):
+    try:
+        users = db.collection("users").stream()
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+        for user in users:
+            data = user.to_dict()
 
-    if st.button("Login"):
-        if email and password:
-            ok, msg = login_user(email, password)
+            if data["email"] == email and data["password"] == password:
+                return True, "Login successful"
 
-            if ok:
-                st.session_state["user"] = email
-                st.success("Welcome 🔥")
-                st.rerun()
-            else:
-                st.error(msg)
-        else:
-            st.warning("Fill all fields")
+        return False, "User or password incorrect"
+
+    except Exception as e:
+        return False, str(e)
 
 # -------- REGISTER --------
 elif menu == "Register":
