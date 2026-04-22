@@ -5,17 +5,17 @@ st.set_page_config(page_title="Teacher Pro System")
 
 st.title("🎓 Teacher Control System")
 
-# 🔥 BOTÓN LOGOUT
+# 🔥 LOGOUT
 if st.sidebar.button("Cerrar sesión"):
     st.session_state.clear()
     st.rerun()
 
-# 🔍 DEBUG (puedes borrarlo después)
+# 🔍 DEBUG USER
 st.sidebar.write("DEBUG USER:", st.session_state.get("user"))
 
 menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
 
-# -------- SI NO HAY USUARIO → LOGIN/REGISTER --------
+# -------- SIN USUARIO --------
 if "user" not in st.session_state:
 
     # -------- LOGIN --------
@@ -26,8 +26,13 @@ if "user" not in st.session_state:
         login_password = st.text_input("Password", type="password", key="login_pass")
 
         if st.button("Login"):
+            st.write("🔍 intentando login...")
+
             if login_email and login_password:
                 ok, msg = login_user(login_email, login_password)
+
+                # 🔥 DEBUG CLAVE
+                st.write("RESULT:", ok, msg)
 
                 if ok:
                     st.session_state["user"] = login_email
@@ -64,8 +69,7 @@ if "user" not in st.session_state:
                 except Exception as e:
                     st.error(str(e))
 
-
-# -------- SI HAY USUARIO → DASHBOARD --------
+# -------- CON USUARIO --------
 else:
 
     st.sidebar.success(f"👤 {st.session_state['user']}")
