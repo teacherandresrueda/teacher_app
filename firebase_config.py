@@ -1,17 +1,14 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
-import json
 
-# 🔐 Inicializar Firebase con SECRETS
+# 🔐 Usar Secrets (TOML), SIN json.loads
 if not firebase_admin._apps:
-    firebase_dict = json.loads(st.secrets["firebase_json"])
-    cred = credentials.Certificate(firebase_dict)
+    cred = credentials.Certificate(dict(st.secrets["firebase"]))
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
-# -------- LOGIN --------
 def login_user(email, password):
     try:
         ref = db.collection("users").document(email)
@@ -21,16 +18,10 @@ def login_user(email, password):
             return False, "User not found"
 
         data = user.to_dict()
-
-        if data["password"] == password:
-            return True, "Login successful"
-        else:
-            return False, "Wrong password"
-
+        return (True, "Login successful") if data["password"] == password else (False, "Wrong password")
     except Exception as e:
         return False, str(e)
 
-# -------- STUDENTS --------
 def add_student(teacher, name):
     db.collection("students").add({
         "teacher": teacher,
@@ -45,7 +36,4 @@ def get_students(teacher):
 def add_points(student_id, pts):
     ref = db.collection("students").document(student_id)
     data = ref.get().to_dict()
-
-    ref.update({
-        "points": data["points"] + pts
-    })
+    ref.update({"points": data["points"] + pts})
