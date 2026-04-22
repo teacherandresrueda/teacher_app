@@ -1,6 +1,5 @@
 import streamlit as st
 from firebase_config import login_user, add_student, get_students, add_points, db
-
 st.set_page_config(page_title="Teacher Pro System")
 
 st.title("🎓 Teacher Control System")
