@@ -1,9 +1,30 @@
 import streamlit as st
-from firebase_config import login_user, add_student, get_students, add_points, db
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-st.set_page_config(page_title="Teacher Pro System")
+if not firebase_admin._apps:
+    cred = credentials.Certificate(st.secrets["firebase"])
+    firebase_admin.initialize_app(cred)
 
-st.title("🎓 Teacher Control System")
+db = firestore.client()
+
+# 🔹 FUNCIONES
+
+def add_student(name):
+    db.collection("students").add({
+        "name": name,
+        "points": 0
+    })
+
+
+def add_points(student_id, points):
+    db.collection("students").document(student_id).update({
+        "points": firestore.Increment(points)
+    })
+
+def login_user(username, password):
+    # Simulación simple (puedes mejorar luego)
+    return username == "admin" and password == "1234"
 
 # 🔥 LOGOUT
 if st.sidebar.button("Cerrar sesión"):
