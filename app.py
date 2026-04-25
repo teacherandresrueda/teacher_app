@@ -72,16 +72,12 @@ def add_points(student_id, points):
 
 # ---------------- DEMO DATA ----------------
 def load_demo_data(user):
-    demo_students = [
-        {"name": "Ana", "points": 12},
-        {"name": "Luis", "points": 5},
-        {"name": "Carlos", "points": -2},
-        {"name": "María", "points": 18},
-        {"name": "Sofía", "points": 9},
-        {"name": "Diego", "points": 0},
-        {"name": "Valeria", "points": 15},
-        {"name": "Jorge", "points": 3}
-    ]
+  st.sidebar.markdown("### 🧪 Demo")
+
+if st.sidebar.button("Cargar datos demo"):
+    load_demo_data(st.session_state["user"])
+    st.success("Datos demo cargados 🚀")
+    st.rerun()
 
     docs = db.collection("students").where("user", "==", user).stream()
     for doc in docs:
