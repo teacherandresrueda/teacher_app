@@ -6,7 +6,17 @@ import pandas as pd
 from datetime import datetime
 
 # ---------------- CONFIG ----------------
-st.set_page_config(page_title="Teacher Intelligence System", layout="wide")
+st.set_page_config(page_title="Teacher App", layout="wide")
+
+st.markdown("""
+<style>
+button {
+    height: 60px;
+    font-size: 18px !important;
+    border-radius: 10px !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------- FIREBASE ----------------
 if not firebase_admin._apps:
@@ -26,19 +36,30 @@ def hash_password(password):
 # ---------------- AUTH ----------------
 def register_user(email, password):
     ref = db.collection("users").document(email)
+
     if ref.get().exists:
-        return False, "User exists"
-    ref.set({"email": email, "password": hash_password(password)})
-    return True, "Created"
+        return False, "User already exists"
+
+    ref.set({
+        "email": email,
+        "password": hash_password(password)
+    })
+
+    return True, "Account created"
 
 def login_user(email, password):
     ref = db.collection("users").document(email)
     user = ref.get()
+
     if not user.exists:
-        return False, "No user"
-    if user.to_dict()["password"] == hash_password(password):
-        return True, "OK"
-    return False, "Wrong password"
+        return False, "User not found"
+
+    data = user.to_dict()
+
+    if data["password"] == hash_password(password):
+        return True, "Login successful"
+    else:
+        return False, "Incorrect password"
 
 # ---------------- GROUPS ----------------
 def create_group(user, name, grade):
@@ -63,28 +84,30 @@ def add_student(user, name, group_id):
 
 def get_students(user, group_id=None):
     query = db.collection("students").where("user", "==", user)
+
     if group_id:
         query = query.where("group_id", "==", group_id)
+
     docs = query.stream()
     return [{**doc.to_dict(), "id": doc.id} for doc in docs]
 
-# ---------------- LISTA AUTO ----------------
+# ---------------- LISTA PREDEFINIDA ----------------
 def load_my_students(user, group_id):
-    names = [
+    students_list = [
         "Andrea López","Luis Martínez","Carlos Ramírez",
         "Sofía Hernández","Valeria Torres","Diego Castro",
         "Fernanda Ruiz","Jorge Mendoza","Camila Ortiz","Daniel Pérez"
     ]
 
     docs = db.collection("students").where("group_id", "==", group_id).stream()
-    for d in docs:
-        db.collection("students").document(d.id).delete()
+    for doc in docs:
+        db.collection("students").document(doc.id).delete()
 
-    for n in names:
+    for name in students_list:
         db.collection("students").add({
             "user": user,
             "group_id": group_id,
-            "name": n,
+            "name": name,
             "points": 0
         })
 
@@ -106,34 +129,35 @@ def get_logs(user):
     docs = db.collection("logs").where("user", "==", user).stream()
     return [doc.to_dict() for doc in docs]
 
-# ---------------- ANALYTICS ----------------
-def student_summary(student_id, logs):
-    total = sum(l["points"] for l in logs if l["student_id"] == student_id)
-    pos = sum(1 for l in logs if l["student_id"] == student_id and l["points"] > 0)
-    neg = sum(1 for l in logs if l["student_id"] == student_id and l["points"] < 0)
+# ---------------- IA (RIESGO) ----------------
+def risk_analysis(student_id, logs):
+    records = [l for l in logs if l["student_id"] == student_id]
 
-    return total, pos, neg
+    if len(records) < 3:
+        return "🟡"
 
-def risk_level(total, pos, neg):
-    if neg > pos:
-        return "🔴 High Risk"
-    elif total < 5:
-        return "🟡 Medium"
-    return "🟢 Good"
+    last = records[-5:]
+    neg = sum(1 for r in last if r["points"] < 0)
+
+    if neg >= 3:
+        return "🔴"
+    elif neg == 2:
+        return "🟡"
+    return "🟢"
 
 # ---------------- UI ----------------
-st.sidebar.title("🚀 Teacher Intelligence")
+st.sidebar.title("📱 Teacher App")
 
 if st.session_state.user:
     st.sidebar.success(st.session_state.user)
-    if st.sidebar.button("Logout"):
+    if st.sidebar.button("Cerrar sesión"):
         st.session_state.user = None
         st.rerun()
 
 menu = st.sidebar.radio(
     "Menu",
     ["Login","Register"] if not st.session_state.user else
-    ["Dashboard","Groups","Students","Points","Analytics","Logs"]
+    ["🏠 Home","🎯 Points","📊 Ranking","🚨 Alerts"]
 )
 
 # ---------------- LOGIN ----------------
@@ -145,12 +169,12 @@ if not st.session_state.user:
         password = st.text_input("Password", type="password")
 
         if st.button("Login"):
-            ok,_ = login_user(email,password)
+            ok, msg = login_user(email, password)
             if ok:
                 st.session_state.user = email
                 st.rerun()
             else:
-                st.error("Error")
+                st.error(msg)
 
     if menu == "Register":
         st.title("Register")
@@ -158,115 +182,81 @@ if not st.session_state.user:
         password = st.text_input("Password", type="password")
 
         if st.button("Register"):
-            ok,msg = register_user(email,password)
-            st.success(msg) if ok else st.error(msg)
+            ok, msg = register_user(email, password)
+            if ok:
+                st.success(msg)
+            else:
+                st.error(msg)
 
 # ---------------- APP ----------------
 else:
 
     groups = get_groups(st.session_state.user)
 
-    # GROUPS
-    if menu == "Groups":
-        st.title("Groups")
-        name = st.text_input("Name")
-        grade = st.selectbox("Grade", ["1","2","3"])
+    # SI NO HAY GRUPOS → CREAR AUTOMÁTICO
+    if not groups:
+        create_group(st.session_state.user, "Grupo 1", "1")
+        groups = get_groups(st.session_state.user)
 
-        if st.button("Create"):
-            create_group(st.session_state.user,name,grade)
-            st.rerun()
+    group_id = groups[0]["id"]
 
-        for g in groups:
-            st.write(f"{g['grade']}° {g['name']}")
+    # SI NO HAY ALUMNOS → CARGAR
+    students = get_students(st.session_state.user, group_id)
 
-    # STUDENTS
-    if menu == "Students":
-        st.title("Students")
+    if not students:
+        load_my_students(st.session_state.user, group_id)
+        students = get_students(st.session_state.user, group_id)
 
-        if groups:
-            gdict = {f"{g['grade']}° {g['name']}": g["id"] for g in groups}
-            sel = st.selectbox("Group", list(gdict.keys()))
-            gid = gdict[sel]
+    # ---------------- HOME ----------------
+    if menu == "🏠 Home":
+        st.title("📱 Teacher App")
 
-            if st.button("🔥 Load List"):
-                load_my_students(st.session_state.user,gid)
-                st.rerun()
+        top = sorted(students, key=lambda x: x["points"], reverse=True)[:3]
 
-            for s in get_students(st.session_state.user,gid):
-                st.write(f"{s['name']} - {s['points']}")
+        st.subheader("🏆 Top Students")
+        for t in top:
+            st.success(f"{t['name']} - {t['points']} pts")
 
-    # POINTS
-    if menu == "Points":
-        st.title("Points System")
+    # ---------------- POINTS ----------------
+    if menu == "🎯 Points":
 
         behaviors = {
-            "Participation": 2,
-            "Homework": 2,
-            "Teamwork": 3,
-            "Late": -1,
-            "No Homework": -2
+            "👍": 2,
+            "📚": 2,
+            "🤝": 3,
+            "⏰": -1,
+            "❌": -2
         }
 
-        if groups:
-            gdict = {f"{g['grade']}° {g['name']}": g["id"] for g in groups}
-            sel = st.selectbox("Group", list(gdict.keys()))
-            gid = gdict[sel]
+        for s in students:
+            st.subheader(f"{s['name']} ({s['points']})")
 
-            students = get_students(st.session_state.user,gid)
+            cols = st.columns(len(behaviors))
 
-            for s in students:
-                st.subheader(s["name"])
-                cols = st.columns(len(behaviors))
+            for i, (b, val) in enumerate(behaviors.items()):
+                if cols[i].button(b, key=f"{s['id']}_{b}"):
+                    add_points(s["id"], val, st.session_state.user, b)
+                    st.rerun()
 
-                for i,(b,val) in enumerate(behaviors.items()):
-                    if cols[i].button(f"{b} ({val})", key=f"{s['id']}_{b}"):
-                        add_points(s["id"],val,st.session_state.user,b)
-                        st.rerun()
+    # ---------------- RANKING ----------------
+    if menu == "📊 Ranking":
+        st.title("Ranking")
 
-    # DASHBOARD
-    if menu == "Dashboard":
-        st.title("Dashboard")
+        df = pd.DataFrame(students).sort_values("points", ascending=False)
+        st.dataframe(df[["name","points"]])
 
-        if groups:
-            gdict = {f"{g['grade']}° {g['name']}": g["id"] for g in groups}
-            sel = st.selectbox("Group", list(gdict.keys()))
-            gid = gdict[sel]
-
-            students = get_students(st.session_state.user,gid)
-
-            if students:
-                df = pd.DataFrame(students).sort_values("points", ascending=False)
-                st.bar_chart(df.set_index("name")["points"])
-                st.dataframe(df)
-
-    # ANALYTICS 🔥
-    if menu == "Analytics":
-        st.title("AI Behavior Analysis")
+    # ---------------- ALERTS ----------------
+    if menu == "🚨 Alerts":
+        st.title("Alerts")
 
         logs = get_logs(st.session_state.user)
-
-        students = get_students(st.session_state.user)
 
         for s in students:
-            total,pos,neg = student_summary(s["id"], logs)
-            risk = risk_level(total,pos,neg)
+            risk = risk_analysis(s["id"], logs)
 
-            st.write(f"{s['name']} | {total} pts | {risk}")
-
-    # LOGS
-    if menu == "Logs":
-        st.title("Logs")
-
-        logs = get_logs(st.session_state.user)
-
-        if logs:
-            df = pd.DataFrame(logs)
-            df["timestamp"] = pd.to_datetime(df["timestamp"])
-
-            # FILTROS 🔥
-            date_filter = st.date_input("Filter by date")
-
-            if date_filter:
-                df = df[df["timestamp"].dt.date == date_filter]
-
-            st.dataframe(df.sort_values("timestamp", ascending=False))
+            if risk == "🔴":
+                st.error(f"{s['name']} en riesgo")
+            elif risk == "🟡":
+                st.warning(f"{s['name']} atención")
+            else:
+                st.success(f"{s['name']} bien")
