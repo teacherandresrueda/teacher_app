@@ -1,111 +1,272 @@
 import streamlit as st
+import firebase_admin
+from firebase_admin import credentials, firestore
+import hashlib
+import pandas as pd
+from datetime import datetime
 
-st.set_page_config(page_title="Control de Grupos", layout="wide")
+# ---------------- CONFIG ----------------
+st.set_page_config(page_title="Teacher Intelligence System", layout="wide")
 
-# -------------------------------
-# 📊 BASE DE DATOS (TUS GRUPOS)
-# -------------------------------
+# ---------------- FIREBASE ----------------
+if not firebase_admin._apps:
+    cred = credentials.Certificate(dict(st.secrets["firebase"]))
+    firebase_admin.initialize_app(cred)
 
-grupos = {
-    "1D": [
-        "Adán Tlaqueparo","Alexis Ramírez","Amairani Bernal","Antonio Rayas",
-        "Camila Pérez","Camila Villegas","Dominic Bardales","Evelyn Alejandra",
-        "Fernanda Roblero","Gabriel Rodríguez","Gael Gil","Iván Jiménez",
-        "Jacqueline Rujerio","Javier Mejía","Jocelyn Rodríguez","Joshua Giovanni",
-        "José Calderón","Leilani Oropesa","Montserrat Martínez","Regina Sánchez",
-        "Renata Rosales","Sebastián Proa","Sebastián Álvarez","Sharon Ledezma",
-        "Sofía Ponciano","Ulises Romero","Uriel García","Uriel López",
-        "Violeta Martínez","Yael Herdanes","Yael Sánchez","Yair García",
-        "Yamilex Rangel","Yazmín Lomas","Ángel Tapia"
-    ],
-    "1E": [
-        "Aarón Hernández","Abril González","Aylin Martínez","Brandon López",
-        "Dafne Ruiz","Diego Torres","Emiliano Cruz","Fernanda Gómez",
-        "Gael Hernández","Ivanna López","Javier Sánchez","Jimena Flores",
-        "José Luis Pérez","Juan Pablo Ramírez","Karen Morales","Luis Ángel Díaz",
-        "María Fernanda Ruiz","Mateo Hernández","Mía González","Natalia López",
-        "Renata Gómez","Rodrigo Sánchez","Sofía Hernández","Valeria Cruz",
-        "Ximena López","Yael Torres"
-    ],
-    "1F": [
-        "Ashely Aidee","Axel Torres","Daniel Quintana","Eduardo Vilchis",
-        "Emiliano Luna","Evoleth Analy","Fernanda Amaya","Gael Galicia",
-        "Gretel Alejandra","Gustavo Angel","Harumi Calixto","Iker Irán",
-        "Ingrid Ximena","Jesús Adrian","Joaly Mendez","Lizeth Mariana",
-        "Luis David","Luis Gerardo","Mariana Faloful","Mariana García",
-        "Mateo Villas","Matias Arias","Renata Rosales","Támara Corona",
-        "Ulises Eliot","Valeria Alejandra","Valeria Michel","Vanessa Negrete",
-        "Vania Denisse","Violeta Sánchez","Yatziri Galán","Zoe Rangel"
-    ],
-    "2D": [
-        "Abril Zarazua","Diego Sánchez","Franco David","Ian Mateo",
-        "Iker Alexander","José De Jesús","Juan Pablo","Julian Barrera",
-        "Javier Alejandro","Javier Resendis","Karla Alejandra","Karla Danae",
-        "Leilany Pomar","Leonardo Zarazua","Luis Andrik","Mariana Trejo",
-        "Michelle Alejandra","Martinez Navarrete","Michelle Angeline",
-        "Natalia Isabel","Raciel Bolaños","Renata Rangel","Ruben García",
-        "Sebastián Aguilar","Skarletth Flores","Valente Rodriguez",
-        "Valeria Zoe","Ximena Anaya","Zuleyca Genoveva"
-    ],
-    "2E": [
-        "Ailine Avalos","Aldo Yael Montero","America Yazmin Luna",
-        "Brandon Mateo Morales","Briseyda Reyes","Britany Aidee Gonzalez",
-        "Carlos Daniel Garcia","Christopher Alonso Mendez",
-        "Derek Yael Gonzalez","Diego Montenegro","Dilan Rodrigo Bernal",
-        "Elizabeth Martinez","Erandi Nicole Santiago",
-        "Iker Alexander Carmona","Iker Noel Sanchez",
-        "Iñaki Javier Martinez","Jorge Dario Cruz",
-        "Juan Gabriel Rubio","Juan Manuel Ramirez",
-        "Karla Jacqueline Castellanos","Karla Paola Vega",
-        "Kerem Samantha Alonso","Kevin Mael Rojas",
-        "Leilany Guadalupe Alcantara","Luis Angel Rodriguez",
-        "Madeline Amelia Olvera","Maximo Alfonso Mar"
+db = firestore.client()
+
+# ---------------- SESSION ----------------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+# ---------------- SECURITY ----------------
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# ---------------- AUTH ----------------
+def register_user(email, password):
+    ref = db.collection("users").document(email)
+    if ref.get().exists:
+        return False, "User exists"
+    ref.set({"email": email, "password": hash_password(password)})
+    return True, "Created"
+
+def login_user(email, password):
+    ref = db.collection("users").document(email)
+    user = ref.get()
+    if not user.exists:
+        return False, "No user"
+    if user.to_dict()["password"] == hash_password(password):
+        return True, "OK"
+    return False, "Wrong password"
+
+# ---------------- GROUPS ----------------
+def create_group(user, name, grade):
+    db.collection("groups").add({
+        "user": user,
+        "name": name,
+        "grade": grade
+    })
+
+def get_groups(user):
+    docs = db.collection("groups").where("user", "==", user).stream()
+    return [{**doc.to_dict(), "id": doc.id} for doc in docs]
+
+# ---------------- STUDENTS ----------------
+def add_student(user, name, group_id):
+    db.collection("students").add({
+        "user": user,
+        "name": name,
+        "group_id": group_id,
+        "points": 0
+    })
+
+def get_students(user, group_id=None):
+    query = db.collection("students").where("user", "==", user)
+    if group_id:
+        query = query.where("group_id", "==", group_id)
+    docs = query.stream()
+    return [{**doc.to_dict(), "id": doc.id} for doc in docs]
+
+# ---------------- LISTA AUTO ----------------
+def load_my_students(user, group_id):
+    names = [
+        "Andrea López","Luis Martínez","Carlos Ramírez",
+        "Sofía Hernández","Valeria Torres","Diego Castro",
+        "Fernanda Ruiz","Jorge Mendoza","Camila Ortiz","Daniel Pérez"
     ]
-}
 
-# -------------------------------
-# 🎛️ INTERFAZ
-# -------------------------------
+    docs = db.collection("students").where("group_id", "==", group_id).stream()
+    for d in docs:
+        db.collection("students").document(d.id).delete()
 
-st.title("📚 Control de Alumnos")
+    for n in names:
+        db.collection("students").add({
+            "user": user,
+            "group_id": group_id,
+            "name": n,
+            "points": 0
+        })
 
-# Selector de grupo
-grupo_seleccionado = st.selectbox("Selecciona un grupo", list(grupos.keys()))
+# ---------------- POINTS + LOG ----------------
+def add_points(student_id, points, user, behavior):
+    db.collection("students").document(student_id).update({
+        "points": firestore.Increment(points)
+    })
 
-# Buscador
-busqueda = st.text_input("🔍 Buscar alumno")
+    db.collection("logs").add({
+        "student_id": student_id,
+        "points": points,
+        "behavior": behavior,
+        "user": user,
+        "timestamp": datetime.now()
+    })
 
-# Lista base
-alumnos = grupos[grupo_seleccionado]
+def get_logs(user):
+    docs = db.collection("logs").where("user", "==", user).stream()
+    return [doc.to_dict() for doc in docs]
 
-# Filtro por búsqueda
-if busqueda:
-    alumnos = [a for a in alumnos if busqueda.lower() in a.lower()]
+# ---------------- ANALYTICS ----------------
+def student_summary(student_id, logs):
+    total = sum(l["points"] for l in logs if l["student_id"] == student_id)
+    pos = sum(1 for l in logs if l["student_id"] == student_id and l["points"] > 0)
+    neg = sum(1 for l in logs if l["student_id"] == student_id and l["points"] < 0)
 
-st.subheader(f"Grupo {grupo_seleccionado} ({len(alumnos)} alumnos)")
+    return total, pos, neg
 
-# Mostrar alumnos
-for i, alumno in enumerate(alumnos):
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        st.write(f"{i+1}")
-    with col2:
-        st.write(alumno)
+def risk_level(total, pos, neg):
+    if neg > pos:
+        return "🔴 High Risk"
+    elif total < 5:
+        return "🟡 Medium"
+    return "🟢 Good"
 
-# -------------------------------
-# ⚡ EXTRA: CONTROL SIMPLE (ASISTENCIA)
-# -------------------------------
+# ---------------- UI ----------------
+st.sidebar.title("🚀 Teacher Intelligence")
 
-st.markdown("---")
-st.subheader("✔️ Registro rápido")
+if st.session_state.user:
+    st.sidebar.success(st.session_state.user)
+    if st.sidebar.button("Logout"):
+        st.session_state.user = None
+        st.rerun()
 
-asistencia = {}
+menu = st.sidebar.radio(
+    "Menu",
+    ["Login","Register"] if not st.session_state.user else
+    ["Dashboard","Groups","Students","Points","Analytics","Logs"]
+)
 
-for alumno in grupos[grupo_seleccionado]:
-    asistencia[alumno] = st.checkbox(alumno, key=f"{grupo_seleccionado}_{alumno}")
+# ---------------- LOGIN ----------------
+if not st.session_state.user:
 
-# Botón de resumen
-if st.button("📊 Ver resumen"):
-    presentes = [a for a, v in asistencia.items() if v]
-    st.success(f"Asistieron: {len(presentes)} alumnos")
-    st.write(presentes)
+    if menu == "Login":
+        st.title("Login")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            ok,_ = login_user(email,password)
+            if ok:
+                st.session_state.user = email
+                st.rerun()
+            else:
+                st.error("Error")
+
+    if menu == "Register":
+        st.title("Register")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+
+        if st.button("Register"):
+            ok,msg = register_user(email,password)
+            st.success(msg) if ok else st.error(msg)
+
+# ---------------- APP ----------------
+else:
+
+    groups = get_groups(st.session_state.user)
+
+    # GROUPS
+    if menu == "Groups":
+        st.title("Groups")
+        name = st.text_input("Name")
+        grade = st.selectbox("Grade", ["1","2","3"])
+
+        if st.button("Create"):
+            create_group(st.session_state.user,name,grade)
+            st.rerun()
+
+        for g in groups:
+            st.write(f"{g['grade']}° {g['name']}")
+
+    # STUDENTS
+    if menu == "Students":
+        st.title("Students")
+
+        if groups:
+            gdict = {f"{g['grade']}° {g['name']}": g["id"] for g in groups}
+            sel = st.selectbox("Group", list(gdict.keys()))
+            gid = gdict[sel]
+
+            if st.button("🔥 Load List"):
+                load_my_students(st.session_state.user,gid)
+                st.rerun()
+
+            for s in get_students(st.session_state.user,gid):
+                st.write(f"{s['name']} - {s['points']}")
+
+    # POINTS
+    if menu == "Points":
+        st.title("Points System")
+
+        behaviors = {
+            "Participation": 2,
+            "Homework": 2,
+            "Teamwork": 3,
+            "Late": -1,
+            "No Homework": -2
+        }
+
+        if groups:
+            gdict = {f"{g['grade']}° {g['name']}": g["id"] for g in groups}
+            sel = st.selectbox("Group", list(gdict.keys()))
+            gid = gdict[sel]
+
+            students = get_students(st.session_state.user,gid)
+
+            for s in students:
+                st.subheader(s["name"])
+                cols = st.columns(len(behaviors))
+
+                for i,(b,val) in enumerate(behaviors.items()):
+                    if cols[i].button(f"{b} ({val})", key=f"{s['id']}_{b}"):
+                        add_points(s["id"],val,st.session_state.user,b)
+                        st.rerun()
+
+    # DASHBOARD
+    if menu == "Dashboard":
+        st.title("Dashboard")
+
+        if groups:
+            gdict = {f"{g['grade']}° {g['name']}": g["id"] for g in groups}
+            sel = st.selectbox("Group", list(gdict.keys()))
+            gid = gdict[sel]
+
+            students = get_students(st.session_state.user,gid)
+
+            if students:
+                df = pd.DataFrame(students).sort_values("points", ascending=False)
+                st.bar_chart(df.set_index("name")["points"])
+                st.dataframe(df)
+
+    # ANALYTICS 🔥
+    if menu == "Analytics":
+        st.title("AI Behavior Analysis")
+
+        logs = get_logs(st.session_state.user)
+
+        students = get_students(st.session_state.user)
+
+        for s in students:
+            total,pos,neg = student_summary(s["id"], logs)
+            risk = risk_level(total,pos,neg)
+
+            st.write(f"{s['name']} | {total} pts | {risk}")
+
+    # LOGS
+    if menu == "Logs":
+        st.title("Logs")
+
+        logs = get_logs(st.session_state.user)
+
+        if logs:
+            df = pd.DataFrame(logs)
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+            # FILTROS 🔥
+            date_filter = st.date_input("Filter by date")
+
+            if date_filter:
+                df = df[df["timestamp"].dt.date == date_filter]
+
+            st.dataframe(df.sort_values("timestamp", ascending=False))
