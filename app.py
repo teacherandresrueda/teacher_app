@@ -1,346 +1,111 @@
 import streamlit as st
-import firebase_admin
-from firebase_admin import credentials, firestore
-import hashlib
-import pandas as pd
 
-# ---------------- CONFIG ----------------
-st.set_page_config(page_title="Teacher SaaS", layout="wide")
+st.set_page_config(page_title="Control de Grupos", layout="wide")
 
-# ---------------- FIREBASE INIT ----------------
-if not firebase_admin._apps:
-    cred = credentials.Certificate(dict(st.secrets["firebase"]))
-    firebase_admin.initialize_app(cred)
+# -------------------------------
+# 📊 BASE DE DATOS (TUS GRUPOS)
+# -------------------------------
 
-db = firestore.client()
-
-# ---------------- SESSION ----------------
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-# ---------------- SECURITY ----------------
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-# ---------------- AUTH ----------------
-def register_user(email, password):
-    ref = db.collection("users").document(email)
-
-    if ref.get().exists:
-        return False, "User already exists"
-
-    ref.set({
-        "email": email,
-        "password": hash_password(password)
-    })
-
-    return True, "Account created"
-
-def login_user(email, password):
-    ref = db.collection("users").document(email)
-    user = ref.get()
-
-    if not user.exists:
-        return False, "User not found"
-
-    data = user.to_dict()
-
-    if data["password"] == hash_password(password):
-        return True, "Login successful"
-    else:
-        return False, "Incorrect password"
-
-# ---------------- GROUPS ----------------
-def create_group(user, group_name):
-    db.collection("groups").add({
-        "user": user,
-        "name": group_name
-    })
-
-def get_groups(user):
-    docs = db.collection("groups").where("user", "==", user).stream()
-    groups = []
-    for doc in docs:
-        data = doc.to_dict()
-        data["id"] = doc.id
-        groups.append(data)
-    return groups
-
-# ---------------- STUDENTS ----------------
-def add_student(user, name, group_id):
-    db.collection("students").add({
-        "user": user,
-        "name": name,
-        "group_id": group_id,
-        "points": 0
-    })
-
-def get_students(user, group_id=None):
-    query = db.collection("students").where("user", "==", user)
-
-    if group_id:
-        query = query.where("group_id", "==", group_id)
-
-    docs = query.stream()
-    students = []
-    for doc in docs:
-        data = doc.to_dict()
-        data["id"] = doc.id
-        students.append(data)
-    return students
-
-def add_points(student_id, points):
-    db.collection("students").document(student_id).update({
-        "points": firestore.Increment(points)
-    })
-
-# ---------------- DEMO DATA ----------------
-def load_demo_data(user, group_id):
-    demo_students = [
-        {"name": "Ana", "points": 5},
-        {"name": "Luis", "points": 2},
-        {"name": "Carlos", "points": -1},
-        {"name": "Sofía", "points": 8},
+grupos = {
+    "1D": [
+        "Adán Tlaqueparo","Alexis Ramírez","Amairani Bernal","Antonio Rayas",
+        "Camila Pérez","Camila Villegas","Dominic Bardales","Evelyn Alejandra",
+        "Fernanda Roblero","Gabriel Rodríguez","Gael Gil","Iván Jiménez",
+        "Jacqueline Rujerio","Javier Mejía","Jocelyn Rodríguez","Joshua Giovanni",
+        "José Calderón","Leilani Oropesa","Montserrat Martínez","Regina Sánchez",
+        "Renata Rosales","Sebastián Proa","Sebastián Álvarez","Sharon Ledezma",
+        "Sofía Ponciano","Ulises Romero","Uriel García","Uriel López",
+        "Violeta Martínez","Yael Herdanes","Yael Sánchez","Yair García",
+        "Yamilex Rangel","Yazmín Lomas","Ángel Tapia"
+    ],
+    "1E": [
+        "Aarón Hernández","Abril González","Aylin Martínez","Brandon López",
+        "Dafne Ruiz","Diego Torres","Emiliano Cruz","Fernanda Gómez",
+        "Gael Hernández","Ivanna López","Javier Sánchez","Jimena Flores",
+        "José Luis Pérez","Juan Pablo Ramírez","Karen Morales","Luis Ángel Díaz",
+        "María Fernanda Ruiz","Mateo Hernández","Mía González","Natalia López",
+        "Renata Gómez","Rodrigo Sánchez","Sofía Hernández","Valeria Cruz",
+        "Ximena López","Yael Torres"
+    ],
+    "1F": [
+        "Ashely Aidee","Axel Torres","Daniel Quintana","Eduardo Vilchis",
+        "Emiliano Luna","Evoleth Analy","Fernanda Amaya","Gael Galicia",
+        "Gretel Alejandra","Gustavo Angel","Harumi Calixto","Iker Irán",
+        "Ingrid Ximena","Jesús Adrian","Joaly Mendez","Lizeth Mariana",
+        "Luis David","Luis Gerardo","Mariana Faloful","Mariana García",
+        "Mateo Villas","Matias Arias","Renata Rosales","Támara Corona",
+        "Ulises Eliot","Valeria Alejandra","Valeria Michel","Vanessa Negrete",
+        "Vania Denisse","Violeta Sánchez","Yatziri Galán","Zoe Rangel"
+    ],
+    "2D": [
+        "Abril Zarazua","Diego Sánchez","Franco David","Ian Mateo",
+        "Iker Alexander","José De Jesús","Juan Pablo","Julian Barrera",
+        "Javier Alejandro","Javier Resendis","Karla Alejandra","Karla Danae",
+        "Leilany Pomar","Leonardo Zarazua","Luis Andrik","Mariana Trejo",
+        "Michelle Alejandra","Martinez Navarrete","Michelle Angeline",
+        "Natalia Isabel","Raciel Bolaños","Renata Rangel","Ruben García",
+        "Sebastián Aguilar","Skarletth Flores","Valente Rodriguez",
+        "Valeria Zoe","Ximena Anaya","Zuleyca Genoveva"
+    ],
+    "2E": [
+        "Ailine Avalos","Aldo Yael Montero","America Yazmin Luna",
+        "Brandon Mateo Morales","Briseyda Reyes","Britany Aidee Gonzalez",
+        "Carlos Daniel Garcia","Christopher Alonso Mendez",
+        "Derek Yael Gonzalez","Diego Montenegro","Dilan Rodrigo Bernal",
+        "Elizabeth Martinez","Erandi Nicole Santiago",
+        "Iker Alexander Carmona","Iker Noel Sanchez",
+        "Iñaki Javier Martinez","Jorge Dario Cruz",
+        "Juan Gabriel Rubio","Juan Manuel Ramirez",
+        "Karla Jacqueline Castellanos","Karla Paola Vega",
+        "Kerem Samantha Alonso","Kevin Mael Rojas",
+        "Leilany Guadalupe Alcantara","Luis Angel Rodriguez",
+        "Madeline Amelia Olvera","Maximo Alfonso Mar"
     ]
+}
 
-    docs = db.collection("students").where("group_id", "==", group_id).stream()
-    for doc in docs:
-        db.collection("students").document(doc.id).delete()
+# -------------------------------
+# 🎛️ INTERFAZ
+# -------------------------------
 
-    for s in demo_students:
-        db.collection("students").add({
-            "user": user,
-            "group_id": group_id,
-            "name": s["name"],
-            "points": s["points"]
-        })
+st.title("📚 Control de Alumnos")
 
-# ---------------- UPLOAD EXCEL ----------------
-def upload_students_from_excel(user, group_id, file):
-    df = pd.read_excel(file)
+# Selector de grupo
+grupo_seleccionado = st.selectbox("Selecciona un grupo", list(grupos.keys()))
 
-    if "name" not in df.columns:
-        return False, "El archivo debe tener una columna llamada 'name'"
+# Buscador
+busqueda = st.text_input("🔍 Buscar alumno")
 
-    docs = db.collection("students").where("group_id", "==", group_id).stream()
-    for doc in docs:
-        db.collection("students").document(doc.id).delete()
+# Lista base
+alumnos = grupos[grupo_seleccionado]
 
-    for _, row in df.iterrows():
-        db.collection("students").add({
-            "user": user,
-            "group_id": group_id,
-            "name": row["name"],
-            "points": 0
-        })
+# Filtro por búsqueda
+if busqueda:
+    alumnos = [a for a in alumnos if busqueda.lower() in a.lower()]
 
-    return True, "Carga masiva exitosa 🚀"
+st.subheader(f"Grupo {grupo_seleccionado} ({len(alumnos)} alumnos)")
 
-# ---------------- SIDEBAR ----------------
-st.sidebar.title("📚 Teacher SaaS")
+# Mostrar alumnos
+for i, alumno in enumerate(alumnos):
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        st.write(f"{i+1}")
+    with col2:
+        st.write(alumno)
 
-if st.session_state.user:
-    st.sidebar.success(f"👤 {st.session_state.user}")
+# -------------------------------
+# ⚡ EXTRA: CONTROL SIMPLE (ASISTENCIA)
+# -------------------------------
 
-    if st.sidebar.button("Cerrar sesión", key="logout_btn"):
-        st.session_state.user = None
-        st.rerun()
+st.markdown("---")
+st.subheader("✔️ Registro rápido")
 
-menu = st.sidebar.selectbox("Navigation", ["Login", "Register"])
+asistencia = {}
 
-# =========================================================
-# ---------------- AUTH SCREENS ----------------
-# =========================================================
-if not st.session_state.user:
+for alumno in grupos[grupo_seleccionado]:
+    asistencia[alumno] = st.checkbox(alumno, key=f"{grupo_seleccionado}_{alumno}")
 
-    if menu == "Login":
-        st.title("🔐 Login")
-
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-
-        if st.button("Login", key="login_btn"):
-            if email and password:
-                ok, msg = login_user(email, password)
-                if ok:
-                    st.session_state.user = email
-                    st.success("Welcome 🔥")
-                    st.rerun()
-                else:
-                    st.error(msg)
-            else:
-                st.warning("Fill all fields")
-
-    elif menu == "Register":
-        st.title("🆕 Create Account")
-
-        email = st.text_input("New email")
-        password = st.text_input("New password", type="password")
-
-        if st.button("Create account", key="register_btn"):
-            if email and password:
-                ok, msg = register_user(email, password)
-                if ok:
-                    st.success(msg)
-                else:
-                    st.error(msg)
-            else:
-                st.warning("Fill all fields")
-
-# =========================================================
-# ---------------- MAIN APP ----------------
-# =========================================================
-else:
-    st.title("📊 Classroom SaaS Panel")
-
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["Students", "Points", "Dashboard", "Groups"]
-    )
-
-    groups = get_groups(st.session_state.user)
-
-    # ---------------- GROUPS TAB ----------------
-    with tab4:
-        st.subheader("👥 Manage Groups")
-
-        group_name = st.text_input("New group name")
-
-        if st.button("Create group", key="create_group_btn"):
-            if group_name:
-                create_group(st.session_state.user, group_name)
-                st.success("Group created")
-                st.rerun()
-
-        st.divider()
-
-        if groups:
-            group_options = {g["name"]: g["id"] for g in groups}
-            selected_group = st.selectbox(
-                "Select group", list(group_options.keys())
-            )
-
-            group_id = group_options[selected_group]
-
-            st.markdown("### 📂 Upload students (Excel)")
-            file = st.file_uploader("Upload Excel file", type=["xlsx"])
-
-            if file:
-                ok, msg = upload_students_from_excel(
-                    st.session_state.user, group_id, file
-                )
-                if ok:
-                    st.success(msg)
-                    st.rerun()
-                else:
-                    st.error(msg)
-
-            st.markdown("### 🧪 Demo data")
-            if st.button("Load demo students", key="demo_btn"):
-                load_demo_data(st.session_state.user, group_id)
-                st.success("Demo cargado 🚀")
-                st.rerun()
-
-            st.markdown("### 👀 Students")
-            students = get_students(st.session_state.user, group_id)
-
-            for s in students:
-                st.write(f"👤 {s['name']} — ⭐ {s['points']}")
-
-        else:
-            st.info("Create a group first")
-
-    # ---------------- STUDENTS TAB ----------------
-    with tab1:
-        st.subheader("Add student manually")
-
-        if groups:
-            group_options = {g["name"]: g["id"] for g in groups}
-            selected_group = st.selectbox(
-                "Select group", list(group_options.keys()),
-                key="students_group"
-            )
-
-            group_id = group_options[selected_group]
-
-            name = st.text_input("Student name")
-
-            if st.button("Add student", key="add_student_btn"):
-                if name:
-                    add_student(st.session_state.user, name, group_id)
-                    st.success("Student added")
-                    st.rerun()
-                else:
-                    st.warning("Enter a name")
-        else:
-            st.info("Create a group first")
-
-    # ---------------- POINTS TAB ----------------
-    with tab2:
-        st.subheader("Manage points")
-
-        if groups:
-            group_options = {g["name"]: g["id"] for g in groups}
-            selected_group = st.selectbox(
-                "Select group", list(group_options.keys()),
-                key="points_group"
-            )
-
-            group_id = group_options[selected_group]
-            students = get_students(st.session_state.user, group_id)
-
-            for s in students:
-                col1, col2, col3 = st.columns([3, 1, 1])
-
-                col1.write(f"{s['name']} ({s['points']})")
-
-                if col2.button("+1", key=f"plus_{s['id']}"):
-                    add_points(s["id"], 1)
-                    st.rerun()
-
-                if col3.button("-1", key=f"minus_{s['id']}"):
-                    add_points(s["id"], -1)
-                    st.rerun()
-        else:
-            st.info("Create a group first")
-
-    # ---------------- DASHBOARD TAB ----------------
-    with tab3:
-        st.subheader("📊 Dashboard")
-
-        if groups:
-            group_options = {g["name"]: g["id"] for g in groups}
-            selected_group = st.selectbox(
-                "Select group", list(group_options.keys()),
-                key="dashboard_group"
-            )
-
-            group_id = group_options[selected_group]
-            students = get_students(st.session_state.user, group_id)
-
-            if students:
-                df = pd.DataFrame(students)
-                df = df.sort_values(by="points", ascending=False)
-
-                st.markdown("### 🏆 Top Students")
-                for _, row in df.head(3).iterrows():
-                    st.success(f"{row['name']} — {row['points']} pts")
-
-                st.markdown("### ⚠ Students at Risk")
-                risk = df[df["points"] <= 0]
-
-                if not risk.empty:
-                    for _, row in risk.iterrows():
-                        st.warning(f"{row['name']} — {row['points']} pts")
-                else:
-                    st.info("No students at risk")
-
-                st.markdown("### 📊 Chart")
-                chart_df = df[["name", "points"]].set_index("name")
-                st.bar_chart(chart_df)
-
-                st.markdown("### 📋 Table")
-                st.dataframe(df)
-            else:
-                st.info("No students in this group")
-        else:
-            st.info("Create a group first")
+# Botón de resumen
+if st.button("📊 Ver resumen"):
+    presentes = [a for a, v in asistencia.items() if v]
+    st.success(f"Asistieron: {len(presentes)} alumnos")
+    st.write(presentes)
