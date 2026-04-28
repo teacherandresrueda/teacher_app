@@ -2,9 +2,10 @@ import streamlit as st
 import json
 import os
 conn = sqlite3.connect("school.db", check_same_thread=False)
-
 st.set_page_config(page_title="Teacher App PRO", layout="wide")
-
+if "teacher_id" not in st.session_state:
+    st.session_state.teacher_id = None
+    
 st.title("📱 Teacher App PRO")
 
 DATA_FILE = "students.json"
