@@ -7,7 +7,7 @@ st.set_page_config(page_title="Teacher SaaS PRO", layout="wide")
 SUPABASE_URL = "https://lzyrlveqjuoidlznkslj.supabase.co"
 SUPABASE_KEY = "PEGA_AQUI_TU_publishable_key"
 
-# ---------------- LOGIN ----------------
+# ---------------- LOGIN FUNCTION ----------------
 def login(email, password):
     url = f"{SUPABASE_URL}/auth/v1/token?grant_type=password"
 
@@ -30,7 +30,7 @@ def login(email, password):
 
 # ---------------- AUTH UI ----------------
 if "user" not in st.session_state:
-    st.title("🔐 Teacher Login")
+    st.title("🔐 Teacher Login SaaS")
 
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
@@ -43,7 +43,7 @@ if "user" not in st.session_state:
             st.success("Welcome 🚀")
             st.rerun()
         else:
-            st.error("Invalid credentials")
+            st.error("Invalid credentials ❌")
 
     st.stop()
 
@@ -72,7 +72,6 @@ def create_group(name, grade):
 
     requests.post(url, json=data, headers=headers)
 
-
 def get_groups():
     url = f"{SUPABASE_URL}/rest/v1/groups?user_id=eq.{st.session_state.user['user']['id']}"
 
@@ -83,7 +82,6 @@ def get_groups():
 
     res = requests.get(url, headers=headers)
     return res.json()
-
 
 def add_student(name, group_id):
     url = f"{SUPABASE_URL}/rest/v1/students"
@@ -101,7 +99,6 @@ def add_student(name, group_id):
 
     requests.post(url, json=data, headers=headers)
 
-
 def get_students(group_id):
     url = f"{SUPABASE_URL}/rest/v1/students?group_id=eq.{group_id}"
 
@@ -116,7 +113,7 @@ def get_students(group_id):
 # ---------------- DASHBOARD ----------------
 if menu == "🏠 Dashboard":
     st.title("📊 Dashboard")
-    st.info("Sistema conectado a la nube 🚀")
+    st.success("Sistema conectado a la nube 🚀")
 
 # ---------------- GROUPS ----------------
 elif menu == "🏫 Groups":
@@ -134,8 +131,11 @@ elif menu == "🏫 Groups":
 
     groups = get_groups()
 
-    for g in groups:
-        st.write(f"📚 Grade {g['grade']} - {g['name']}")
+    if groups:
+        for g in groups:
+            st.write(f"📚 Grade {g['grade']} - {g['name']}")
+    else:
+        st.warning("No groups yet")
 
 # ---------------- STUDENTS ----------------
 elif menu == "👥 Students":
@@ -161,5 +161,8 @@ elif menu == "👥 Students":
 
         students = get_students(group_id)
 
-        for s in students:
-            st.write(f"👤 {s['name']}")
+        if students:
+            for s in students:
+                st.write(f"👤 {s['name']}")
+        else:
+            st.info("No students yet")
