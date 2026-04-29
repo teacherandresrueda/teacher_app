@@ -2,12 +2,12 @@ import streamlit as st
 import requests
 
 # ---------------- CONFIG ----------------
-st.set_page_config(page_title="Teacher SaaS PRO", layout="wide")
+st.set_page_config(page_title="Teacher Manager PRO", layout="wide")
 
 SUPABASE_URL = "https://lzyrlveqjuoidlznkslj.supabase.co"
 SUPABASE_KEY = "PEGA_AQUI_TU_publishable_key"
 
-# ---------------- LOGIN FUNCTION ----------------
+# ---------------- LOGIN ----------------
 def login(email, password):
     url = f"{SUPABASE_URL}/auth/v1/token?grant_type=password"
 
@@ -28,9 +28,9 @@ def login(email, password):
     else:
         return None
 
-# ---------------- AUTH UI ----------------
+# ---------------- AUTH ----------------
 if "user" not in st.session_state:
-    st.title("🔐 Teacher Login SaaS")
+    st.title("🔐 Login Teacher")
 
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
@@ -54,7 +54,18 @@ menu = st.sidebar.radio("Menu", [
     "👥 Students"
 ])
 
-# ---------------- API FUNCTIONS ----------------
+# ---------------- API ----------------
+def get_groups():
+    url = f"{SUPABASE_URL}/rest/v1/groups?user_id=eq.{st.session_state.user['user']['id']}"
+
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {st.session_state.user['access_token']}"
+    }
+
+    res = requests.get(url, headers=headers)
+    return res.json()
+
 def create_group(name, grade):
     url = f"{SUPABASE_URL}/rest/v1/groups"
 
@@ -72,8 +83,8 @@ def create_group(name, grade):
 
     requests.post(url, json=data, headers=headers)
 
-def get_groups():
-    url = f"{SUPABASE_URL}/rest/v1/groups?user_id=eq.{st.session_state.user['user']['id']}"
+def get_students(group_id):
+    url = f"{SUPABASE_URL}/rest/v1/students?group_id=eq.{group_id}"
 
     headers = {
         "apikey": SUPABASE_KEY,
@@ -99,43 +110,36 @@ def add_student(name, group_id):
 
     requests.post(url, json=data, headers=headers)
 
-def get_students(group_id):
-    url = f"{SUPABASE_URL}/rest/v1/students?group_id=eq.{group_id}"
-
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {st.session_state.user['access_token']}"
-    }
-
-    res = requests.get(url, headers=headers)
-    return res.json()
-
 # ---------------- DASHBOARD ----------------
 if menu == "🏠 Dashboard":
     st.title("📊 Dashboard")
-    st.success("Sistema conectado a la nube 🚀")
+    st.success("Sistema activo en la nube 🚀")
 
 # ---------------- GROUPS ----------------
 elif menu == "🏫 Groups":
-    st.title("🏫 Create Group")
+    st.title("🏫 Manage Groups")
 
-    grade = st.selectbox("Grade", ["1", "2", "3"])
-    group_letter = st.text_input("Group (A, B...)")
+    col1, col2 = st.columns(2)
 
-    if st.button("Create Group"):
-        name = f"{grade}{group_letter}"
-        create_group(name, grade)
-        st.success("Group created ✅")
+    with col1:
+        grade = st.selectbox("Grade", ["1", "2", "3"])
+        group_letter = st.text_input("Group (A, B...)")
 
-    st.subheader("Your Groups")
+        if st.button("Create Group"):
+            name = f"{grade}{group_letter}"
+            create_group(name, grade)
+            st.success("Group created ✅")
 
-    groups = get_groups()
+    with col2:
+        st.subheader("Your Groups")
 
-    if groups:
-        for g in groups:
-            st.write(f"📚 Grade {g['grade']} - {g['name']}")
-    else:
-        st.warning("No groups yet")
+        groups = get_groups()
+
+        if groups:
+            for g in groups:
+                st.write(f"📚 Grade {g['grade']} - {g['name']}")
+        else:
+            st.warning("No groups yet")
 
 # ---------------- STUDENTS ----------------
 elif menu == "👥 Students":
