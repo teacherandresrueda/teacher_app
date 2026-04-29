@@ -1,6 +1,24 @@
+import requests
 import streamlit as st
-import sqlite3
-from datetime import datetime
+
+SUPABASE_URL = "https://lzyrlveqjuoidlznkslj.supabase.co"
+SUPABASE_KEY = "PEGA_AQUI_TU_publishable_key"
+
+def test_connection():
+    url = f"{SUPABASE_URL}/rest/v1/"
+    
+    headers = {
+        "apikey": SUPABASE_KEY
+    }
+
+    res = requests.get(url, headers=headers)
+
+    if res.status_code == 200:
+        st.success("✅ Connected to Supabase")
+    else:
+        st.error(f"❌ Error {res.status_code}: {res.text}")
+
+test_connection()
 
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="Teacher Manager PRO", layout="wide")
